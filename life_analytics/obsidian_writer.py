@@ -71,7 +71,8 @@ class ObsidianWriter:
         target_date: date,
     ) -> Literal["created", "skipped"]:
         notes_dir = self.vault_path / "Notes" / "PLAUD"
-        notes_dir.mkdir(parents=True, exist_ok=True)
+        if not self.dry_run:
+            notes_dir.mkdir(parents=True, exist_ok=True)
 
         filename = _note_filename(recording, target_date)
         note_path = notes_dir / filename
@@ -130,10 +131,10 @@ class ObsidianWriter:
     def _ensure_daily_note(self, d: date) -> Path:
         path = self._daily_note_path(d)
         if not path.exists():
-            path.parent.mkdir(parents=True, exist_ok=True)
             if self.dry_run:
                 logger.info(f"[DRY-RUN] Daily Note を作成します: {path}")
             else:
+                path.parent.mkdir(parents=True, exist_ok=True)
                 path.touch()
                 logger.info(f"[created] Daily Note を作成しました: {path.name}")
         return path
