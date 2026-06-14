@@ -37,21 +37,21 @@ docker-compose.override.yml
 # ==============================================================
 
 # --- Python ---
-# __pycache__/
-# *.py[cod]
-# *.pyo
-# .venv/
-# venv/
-# .uv/
-# dist/
-# build/
-# *.egg-info/
-# .pytest_cache/
-# .mypy_cache/
-# .ruff_cache/
-# htmlcov/
-# .coverage
-# coverage.xml
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.uv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
 
 # --- Node.js / TypeScript ---
 # node_modules/
