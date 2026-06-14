@@ -32,7 +32,7 @@ cp .env.example .env
 
 ```bash
 # Obsidian Vault の絶対パス（必須）
-OBSIDIAN_VAULT_PATH=/Users/yourname/SecondBrain
+OBSIDIAN_VAULT_PATH=/Users/masayuki_kato/Obsidian/SecondBrain
 
 # Plaud CLI コマンド（任意）
 # PLAUD_CLI=npx @plaud-ai/cli
