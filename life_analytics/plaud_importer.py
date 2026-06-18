@@ -75,6 +75,8 @@ def main() -> None:
 
     logger.info(f"{len(recordings)} 件の録音が見つかりました")
 
+    writer.ensure_daily_note(target_date)
+
     results: dict[str, int] = {"created": 0, "skipped": 0, "failed": 0}
     for rec in recordings:
         summary = client.fetch_summary(rec.id)

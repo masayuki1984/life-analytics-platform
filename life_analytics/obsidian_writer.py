@@ -128,6 +128,10 @@ class ObsidianWriter:
     # Daily Note ユーティリティ
     # ------------------------------------------------------------------
 
+    def ensure_daily_note(self, d: date) -> Path:
+        """録音の有無に関わらず Daily Note を保証する。"""
+        return self._ensure_daily_note(d)
+
     def _ensure_daily_note(self, d: date) -> Path:
         path = self._daily_note_path(d)
         if not path.exists():

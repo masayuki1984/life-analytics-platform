@@ -92,6 +92,33 @@ def test_main_success(monkeypatch, tmp_path) -> None:
         except SystemExit as e:
             pytest.fail(f"main() が予期せず exit {e.code} しました")
 
+    mock_writer.ensure_daily_note.assert_called_once_with(date(2026, 6, 14))
+
+
+def test_main_creates_daily_note_when_no_recordings(monkeypatch, tmp_path) -> None:
+    """録音が 0 件でも Daily Note が作成される。"""
+    monkeypatch.setattr(sys, "argv", ["plaud_importer", "--date", "2026-06-14"])
+    monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
+
+    mock_client = MagicMock()
+    mock_client.fetch_recordings.return_value = []
+
+    mock_writer = MagicMock()
+
+    with (
+        patch("life_analytics.plaud_importer.PlaudClient", return_value=mock_client),
+        patch("life_analytics.plaud_importer.ObsidianWriter", return_value=mock_writer),
+    ):
+        from life_analytics import plaud_importer
+
+        try:
+            plaud_importer.main()
+        except SystemExit as e:
+            pytest.fail(f"main() が予期せず exit {e.code} しました")
+
+    mock_writer.ensure_daily_note.assert_called_once_with(date(2026, 6, 14))
+    mock_writer.process_recording.assert_not_called()
+
 
 def test_main_exits_1_on_all_failed(monkeypatch, tmp_path) -> None:
     """全録音の処理が失敗した場合に exit 1 になる。"""
