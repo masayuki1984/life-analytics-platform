@@ -6,11 +6,14 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+_DEFAULT_TIMEOUT = 60
+
 
 @dataclass(frozen=True)
 class Config:
     vault_path: Path
     plaud_cli: str
+    plaud_timeout: int
     log_level: str
 
 
@@ -29,8 +32,19 @@ def load_config() -> Config:
             f"OBSIDIAN_VAULT_PATH が存在しないか、ディレクトリではありません: {vault_path}"
         )
 
+    timeout_str = os.environ.get("PLAUD_TIMEOUT", str(_DEFAULT_TIMEOUT))
+    try:
+        plaud_timeout = int(timeout_str)
+        if plaud_timeout <= 0:
+            raise ValueError
+    except ValueError:
+        raise ValueError(
+            f"PLAUD_TIMEOUT は正の整数で指定してください（現在の値: {timeout_str!r}）"
+        )
+
     return Config(
         vault_path=vault_path,
         plaud_cli=os.environ.get("PLAUD_CLI", "npx @plaud-ai/cli"),
+        plaud_timeout=plaud_timeout,
         log_level=os.environ.get("LOG_LEVEL", "INFO"),
     )
