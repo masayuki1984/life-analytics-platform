@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from life_analytics.plaud_client import (
+    PlaudAuthenticationError,
     PlaudClient,
     PlaudCLIError,
     _parse_summary,
@@ -187,3 +188,79 @@ def test_fetch_recordings_raises_on_missing_cli() -> None:
     client = PlaudClient("nonexistent-cli-command")
     with pytest.raises(PlaudCLIError, match="見つかりません"):
         client.fetch_recordings(date(2026, 6, 14))
+
+
+# ---------------------------------------------------------------------------
+# PlaudAuthenticationError: AUTH_FAILED 検知
+# ---------------------------------------------------------------------------
+
+
+def _mock_subprocess(stdout: str = "", stderr: str = "", returncode: int = 0):
+    """subprocess.run の戻り値をモックするパッチ。"""
+    from unittest.mock import MagicMock
+
+    mock_result = MagicMock()
+    mock_result.stdout = stdout
+    mock_result.stderr = stderr
+    mock_result.returncode = returncode
+    return patch("subprocess.run", return_value=mock_result)
+
+
+def test_auth_failed_in_stdout_raises_authentication_error() -> None:
+    """stdout に AUTH_FAILED が含まれる場合 PlaudAuthenticationError を raise する。"""
+    with _mock_subprocess(stdout="AUTH_FAILED\nToken invalid or expired."):
+        client = PlaudClient("plaud")
+        with pytest.raises(PlaudAuthenticationError, match="plaud login"):
+            client.fetch_recordings(date(2026, 6, 14))
+
+
+def test_auth_failed_in_stderr_raises_authentication_error() -> None:
+    """stderr に AUTH_FAILED が含まれる場合 PlaudAuthenticationError を raise する。"""
+    with _mock_subprocess(stderr="AUTH_FAILED\nToken invalid or expired.", returncode=1):
+        client = PlaudClient("plaud")
+        with pytest.raises(PlaudAuthenticationError, match="plaud login"):
+            client.fetch_recordings(date(2026, 6, 14))
+
+
+def test_auth_failed_is_subclass_of_plaud_cli_error() -> None:
+    """PlaudAuthenticationError は PlaudCLIError のサブクラスである。"""
+    assert issubclass(PlaudAuthenticationError, PlaudCLIError)
+
+
+def test_fetch_summary_propagates_auth_error() -> None:
+    """fetch_summary は PlaudAuthenticationError を握りつぶさず伝播する。"""
+    with _mock_subprocess(stdout="AUTH_FAILED\nToken invalid or expired."):
+        client = PlaudClient("plaud")
+        with pytest.raises(PlaudAuthenticationError):
+            client.fetch_summary("dummy_id")
+
+
+# ---------------------------------------------------------------------------
+# タイムアウト
+# ---------------------------------------------------------------------------
+
+
+def test_timeout_raises_plaud_cli_error() -> None:
+    """`subprocess.TimeoutExpired` が `PlaudCLIError` に変換される。"""
+    import subprocess
+    from unittest.mock import patch as _patch
+
+    with _patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="plaud", timeout=5)):
+        client = PlaudClient("plaud", timeout=5)
+        with pytest.raises(PlaudCLIError, match="タイムアウト"):
+            client.fetch_recordings(date(2026, 6, 14))
+
+
+# ---------------------------------------------------------------------------
+# 正常系: timeout 付き PlaudClient
+# ---------------------------------------------------------------------------
+
+
+def test_fetch_recordings_with_timeout() -> None:
+    """timeout を指定した PlaudClient でも録音を正常取得できる。"""
+    with _mock_run([RECENT_OUTPUT, FILE_OUTPUT_A, FILE_OUTPUT_B]):
+        client = PlaudClient("npx @plaud-ai/cli", timeout=30)
+        recs = client.fetch_recordings(date(2026, 6, 14))
+
+    assert len(recs) == 1
+    assert recs[0].id == "7190240c21240ccfc5c38038e42c893e"

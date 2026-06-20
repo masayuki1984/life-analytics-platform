@@ -7,7 +7,7 @@ from datetime import date, timedelta
 
 from life_analytics.config import load_config
 from life_analytics.obsidian_writer import ObsidianWriter
-from life_analytics.plaud_client import PlaudClient, PlaudCLIError
+from life_analytics.plaud_client import PlaudAuthenticationError, PlaudClient, PlaudCLIError
 
 logger = logging.getLogger(__name__)
 
@@ -64,11 +64,15 @@ def main() -> None:
 
     logger.info(f"処理対象日: {target_date}  Vault: {config.vault_path}")
 
-    client = PlaudClient(config.plaud_cli)
+    client = PlaudClient(config.plaud_cli, timeout=config.plaud_timeout)
     writer = ObsidianWriter(config.vault_path, dry_run=args.dry_run)
 
     try:
         recordings = client.fetch_recordings(target_date)
+    except PlaudAuthenticationError as e:
+        logger.error(str(e))
+        logger.error("復旧手順: `plaud login` を実行して再認証してください。")
+        sys.exit(1)
     except PlaudCLIError as e:
         logger.error(f"録音の取得に失敗しました: {e}")
         sys.exit(1)
@@ -79,7 +83,12 @@ def main() -> None:
 
     results: dict[str, int] = {"created": 0, "skipped": 0, "failed": 0}
     for rec in recordings:
-        summary = client.fetch_summary(rec.id)
+        try:
+            summary = client.fetch_summary(rec.id)
+        except PlaudAuthenticationError as e:
+            logger.error(str(e))
+            logger.error("復旧手順: `plaud login` を実行して再認証してください。")
+            sys.exit(1)
         try:
             status = writer.process_recording(rec, summary, target_date)
             results[status] += 1

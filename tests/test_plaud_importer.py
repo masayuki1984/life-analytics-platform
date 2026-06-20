@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from life_analytics.plaud_client import PlaudRecording
+from life_analytics.plaud_client import PlaudAuthenticationError, PlaudRecording
 
 
 def _make_recording(name: str = "MEETING_Test", file_id: str = "a" * 32) -> PlaudRecording:
@@ -118,6 +118,51 @@ def test_main_creates_daily_note_when_no_recordings(monkeypatch, tmp_path) -> No
 
     mock_writer.ensure_daily_note.assert_called_once_with(date(2026, 6, 14))
     mock_writer.process_recording.assert_not_called()
+
+
+def test_main_exits_1_on_auth_error_in_fetch_recordings(monkeypatch, tmp_path) -> None:
+    """fetch_recordings が PlaudAuthenticationError を raise したとき exit 1 になる。"""
+    monkeypatch.setattr(sys, "argv", ["plaud_importer", "--date", "2026-06-14"])
+    monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
+
+    mock_client = MagicMock()
+    mock_client.fetch_recordings.side_effect = PlaudAuthenticationError("認証エラー")
+
+    mock_writer = MagicMock()
+
+    with (
+        patch("life_analytics.plaud_importer.PlaudClient", return_value=mock_client),
+        patch("life_analytics.plaud_importer.ObsidianWriter", return_value=mock_writer),
+    ):
+        from life_analytics import plaud_importer
+
+        with pytest.raises(SystemExit) as exc:
+            plaud_importer.main()
+        assert exc.value.code == 1
+
+
+def test_main_exits_1_on_auth_error_in_fetch_summary(monkeypatch, tmp_path) -> None:
+    """fetch_summary が PlaudAuthenticationError を raise したとき exit 1 になる。"""
+    monkeypatch.setattr(sys, "argv", ["plaud_importer", "--date", "2026-06-14"])
+    monkeypatch.setenv("OBSIDIAN_VAULT_PATH", str(tmp_path))
+
+    rec = _make_recording()
+
+    mock_client = MagicMock()
+    mock_client.fetch_recordings.return_value = [rec]
+    mock_client.fetch_summary.side_effect = PlaudAuthenticationError("認証エラー")
+
+    mock_writer = MagicMock()
+
+    with (
+        patch("life_analytics.plaud_importer.PlaudClient", return_value=mock_client),
+        patch("life_analytics.plaud_importer.ObsidianWriter", return_value=mock_writer),
+    ):
+        from life_analytics import plaud_importer
+
+        with pytest.raises(SystemExit) as exc:
+            plaud_importer.main()
+        assert exc.value.code == 1
 
 
 def test_main_exits_1_on_all_failed(monkeypatch, tmp_path) -> None:
