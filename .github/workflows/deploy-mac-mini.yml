@@ -1,0 +1,28 @@
+name: Deploy to Mac mini
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    if: github.repository == 'masayuki1984/life-analytics-platform' && github.actor == 'masayuki1984'
+    runs-on: [self-hosted, macOS, ARM64, life-analytics]
+
+    steps:
+      - name: Pull latest code
+        run: |
+          cd ~/Projects/life-analytics-platform
+          git fetch origin main
+          git reset --hard origin/main
+
+      - name: Install dependencies
+        run: |
+          cd ~/Projects/life-analytics-platform
+          uv sync
+
+      - name: Smoke test
+        run: |
+          cd ~/Projects/life-analytics-platform
+          uv run python -m life_analytics.plaud_importer --help
