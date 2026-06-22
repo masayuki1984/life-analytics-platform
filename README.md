@@ -22,6 +22,31 @@ uv sync --extra dev
 npx @plaud-ai/cli login
 ```
 
+### Daily Note テンプレートの準備
+
+Daily Note は Obsidian Vault 内の `Templates/daily.md` を元に生成される。
+テンプレートがない場合は空ファイルで作成される（WARNING ログが出力される）。
+
+```bash
+# テンプレートディレクトリを作成してサンプルを配置する
+mkdir -p "$OBSIDIAN_VAULT_PATH/Templates"
+cat > "$OBSIDIAN_VAULT_PATH/Templates/daily.md" << 'EOF'
+# {{date}}
+
+## 今日の目標
+
+-
+
+## Plaud
+
+## メモ
+
+EOF
+```
+
+`## Plaud` セクションが含まれている場合はそこへ録音リンクが追記される。
+含まれていない場合はファイル末尾に `## Plaud` セクションが追加される。
+
 ブラウザが開き、Plaud アカウントでログインすると認証トークンが保存される。
 self-hosted runner など GUI がない環境では、別のマシンで `plaud login` を実行し、
 生成されたトークンファイル（`~/.plaud/`）をコピーする。

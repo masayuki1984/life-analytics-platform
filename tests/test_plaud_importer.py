@@ -117,6 +117,7 @@ def test_main_creates_daily_note_when_no_recordings(monkeypatch, tmp_path) -> No
             pytest.fail(f"main() が予期せず exit {e.code} しました")
 
     mock_writer.ensure_daily_note.assert_called_once_with(date(2026, 6, 14))
+    mock_writer.write_no_recordings.assert_called_once_with(date(2026, 6, 14))
     mock_writer.process_recording.assert_not_called()
 
 

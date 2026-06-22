@@ -196,6 +196,123 @@ def test_link_not_duplicated_on_rerun(vault: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Daily Note テンプレート
+# ---------------------------------------------------------------------------
+
+TEMPLATE_CONTENT = """\
+# {{date}}
+
+## 今日の目標
+
+-
+
+## Plaud
+
+## メモ
+"""
+
+
+def _make_template(vault: Path, content: str = TEMPLATE_CONTENT) -> Path:
+    template_dir = vault / "Templates"
+    template_dir.mkdir(parents=True, exist_ok=True)
+    template_path = template_dir / "daily.md"
+    template_path.write_text(content, encoding="utf-8")
+    return template_path
+
+
+def test_ensure_daily_note_copies_template(vault: Path) -> None:
+    """テンプレートが存在する場合、新規 Daily Note にテンプレート内容がコピーされる。"""
+    _make_template(vault)
+    writer = ObsidianWriter(vault)
+    writer.ensure_daily_note(TARGET_DATE)
+
+    daily = vault / "Daily" / "2026" / "06" / "2026-06-14.md"
+    assert daily.exists()
+    content = daily.read_text(encoding="utf-8")
+    assert "今日の目標" in content
+    assert "## Plaud" in content
+
+
+def test_ensure_daily_note_fallback_when_no_template(vault: Path, caplog) -> None:
+    """テンプレートが存在しない場合、空ファイルで作成され WARNING ログが出る。"""
+    writer = ObsidianWriter(vault)
+    import logging
+
+    with caplog.at_level(logging.WARNING):
+        writer.ensure_daily_note(TARGET_DATE)
+
+    daily = vault / "Daily" / "2026" / "06" / "2026-06-14.md"
+    assert daily.exists()
+    assert daily.read_text(encoding="utf-8") == ""
+    assert "Templates/daily.md が見つかりません" in caplog.text
+
+
+def test_ensure_daily_note_does_not_overwrite_existing(vault: Path) -> None:
+    """既存の Daily Note がある場合、テンプレートで上書きされない。"""
+    daily = vault / "Daily" / "2026" / "06" / "2026-06-14.md"
+    daily.parent.mkdir(parents=True, exist_ok=True)
+    daily.write_text("既存コンテンツ", encoding="utf-8")
+
+    _make_template(vault)
+    writer = ObsidianWriter(vault)
+    writer.ensure_daily_note(TARGET_DATE)
+
+    assert daily.read_text(encoding="utf-8") == "既存コンテンツ"
+
+
+# ---------------------------------------------------------------------------
+# write_no_recordings
+# ---------------------------------------------------------------------------
+
+
+def test_write_no_recordings_appends_to_plaud_section(vault: Path) -> None:
+    """録音なし時に Plaud セクションへ '録音なし' が書き込まれる。"""
+    _make_template(vault)
+    writer = ObsidianWriter(vault)
+    writer.write_no_recordings(TARGET_DATE)
+
+    daily = vault / "Daily" / "2026" / "06" / "2026-06-14.md"
+    content = daily.read_text(encoding="utf-8")
+    assert "## Plaud" in content
+    assert "録音なし" in content
+
+
+def test_write_no_recordings_adds_plaud_section_if_missing(vault: Path) -> None:
+    """`## Plaud` セクションがないファイルに対して末尾に追加して '録音なし' を書き込む。"""
+    daily = vault / "Daily" / "2026" / "06" / "2026-06-14.md"
+    daily.parent.mkdir(parents=True, exist_ok=True)
+    daily.write_text("# 2026-06-14\n\n## 今日の目標\n\n-\n", encoding="utf-8")
+
+    writer = ObsidianWriter(vault)
+    writer.write_no_recordings(TARGET_DATE)
+
+    content = daily.read_text(encoding="utf-8")
+    assert "## Plaud" in content
+    assert "録音なし" in content
+
+
+def test_write_no_recordings_idempotent(vault: Path) -> None:
+    """`write_no_recordings()` を 2 回呼んでも '録音なし' が重複しない。"""
+    _make_template(vault)
+    writer = ObsidianWriter(vault)
+    writer.write_no_recordings(TARGET_DATE)
+    writer.write_no_recordings(TARGET_DATE)
+
+    daily = vault / "Daily" / "2026" / "06" / "2026-06-14.md"
+    content = daily.read_text(encoding="utf-8")
+    assert content.count("録音なし") == 1
+
+
+def test_write_no_recordings_dry_run_does_not_write(vault: Path) -> None:
+    """`dry_run` 時に `write_no_recordings()` がファイルを作成・変更しない。"""
+    _make_template(vault)
+    writer = ObsidianWriter(vault, dry_run=True)
+    writer.write_no_recordings(TARGET_DATE)
+
+    assert not (vault / "Daily").exists()
+
+
+# ---------------------------------------------------------------------------
 # dry_run モード
 # ---------------------------------------------------------------------------
 
