@@ -132,15 +132,45 @@ class ObsidianWriter:
         """録音の有無に関わらず Daily Note を保証する。"""
         return self._ensure_daily_note(d)
 
+    def write_no_recordings(self, d: date) -> None:
+        """録音がない日に Daily Note の Plaud セクションへ '録音なし' を書き込む（冪等）。"""
+        daily_path = self._ensure_daily_note(d)
+
+        if not self.dry_run and self._is_no_recordings_written(daily_path):
+            logger.debug(f"[skip] '録音なし' は既に記録済みです: {daily_path.name}")
+            return
+
+        self._ensure_plaud_section(daily_path)
+
+        if self.dry_run:
+            logger.info(f"[DRY-RUN] Daily Note に '録音なし' を追記します: {daily_path.name}")
+        else:
+            with open(daily_path, "a", encoding="utf-8") as f:
+                f.write("\n録音なし\n")
+            logger.info(f"[created] '録音なし' を追記しました: {daily_path.name}")
+
     def _ensure_daily_note(self, d: date) -> Path:
         path = self._daily_note_path(d)
         if not path.exists():
+            template_path = self.vault_path / "Templates" / "daily.md"
+            use_template = template_path.exists()
             if self.dry_run:
-                logger.info(f"[DRY-RUN] Daily Note を作成します: {path}")
+                src = "テンプレート使用" if use_template else "空ファイル"
+                logger.info(f"[DRY-RUN] Daily Note を作成します ({src}): {path}")
             else:
                 path.parent.mkdir(parents=True, exist_ok=True)
-                path.touch()
-                logger.info(f"[created] Daily Note を作成しました: {path.name}")
+                if use_template:
+                    content = template_path.read_text(encoding="utf-8")
+                    path.write_text(content, encoding="utf-8")
+                    logger.info(
+                        f"[created] Daily Note を作成しました (テンプレート使用): {path.name}"
+                    )
+                else:
+                    path.touch()
+                    logger.warning(
+                        "Templates/daily.md が見つかりません。"
+                        f"空ファイルで作成しました: {path.name}"
+                    )
         return path
 
     def _daily_note_path(self, d: date) -> Path:
@@ -166,6 +196,12 @@ class ObsidianWriter:
         if self.dry_run or not note_path.exists():
             return False
         return f"plaud:{recording_id}" in note_path.read_text(encoding="utf-8")
+
+    def _is_no_recordings_written(self, note_path: Path) -> bool:
+        """'録音なし' が既に書き込まれているか確認する。"""
+        if not note_path.exists():
+            return False
+        return "録音なし" in note_path.read_text(encoding="utf-8")
 
 
 # ------------------------------------------------------------------

@@ -1,6 +1,6 @@
 # 設計仕様: plaud-importer
 
-**最終更新**: 2026-06-14  
+**最終更新**: 2026-06-22  
 **ステータス**: 草案  
 **対応要件**: [docs/requirements/plaud-importer.md](../requirements/plaud-importer.md)
 
@@ -147,7 +147,10 @@ def _daily_note_path(self, d: date) -> Path:
     return self.vault_path / "Daily" / f"{d.year:04d}" / f"{d.month:02d}" / f"{d.year:04d}-{d.month:02d}-{d.day:02d}.md"
 ```
 
-Daily Note が存在しない場合は空ファイルを新規作成する。
+Daily Note が存在しない場合は `{vault_path}/Templates/daily.md` の内容をコピーして新規作成する。
+テンプレートが存在しない場合は空ファイルを作成する（WARNING ログを出力）。
+
+録音が 0 件の日は `write_no_recordings()` により `## Plaud` セクションへ `録音なし` を書き込む。
 
 ### Plaud セクションの追記ルール
 

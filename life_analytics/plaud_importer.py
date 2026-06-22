@@ -81,6 +81,9 @@ def main() -> None:
 
     writer.ensure_daily_note(target_date)
 
+    if not recordings:
+        writer.write_no_recordings(target_date)
+
     results: dict[str, int] = {"created": 0, "skipped": 0, "failed": 0}
     for rec in recordings:
         try:
