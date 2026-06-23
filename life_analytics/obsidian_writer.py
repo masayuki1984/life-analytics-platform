@@ -12,6 +12,43 @@ logger = logging.getLogger(__name__)
 
 IDEA_PREFIX = "IDEA_"
 
+
+def _insert_into_plaud_section(content: str, entry: str) -> str:
+    """## Plaud セクションの末尾（次の ## の前）にエントリを挿入する。
+
+    ## Plaud が見つからない場合はファイル末尾に追記する。
+    """
+    lines = content.splitlines(keepends=True)
+
+    plaud_idx: int | None = None
+    for i, line in enumerate(lines):
+        if line.rstrip("\r\n") == "## Plaud":
+            plaud_idx = i
+            break
+
+    if plaud_idx is None:
+        return content.rstrip("\n") + "\n\n" + entry.strip("\n") + "\n"
+
+    # 次の ## セクションを探す
+    next_section_idx = len(lines)
+    for i in range(plaud_idx + 1, len(lines)):
+        if lines[i].startswith("## "):
+            next_section_idx = i
+            break
+
+    # セクション内の空行を除いた末尾の直後を挿入位置にする
+    insert_idx = next_section_idx
+    for i in range(next_section_idx - 1, plaud_idx, -1):
+        if lines[i].strip():
+            insert_idx = i + 1
+            break
+    else:
+        insert_idx = plaud_idx + 1
+
+    new_lines = lines[:insert_idx] + [entry.strip("\n") + "\n"] + lines[insert_idx:]
+    return "".join(new_lines)
+
+
 # ファイル名に使えない文字（Windows 互換 + 空白）
 _FILENAME_UNSAFE = re.compile(r'[\\/:*?"<>|\s]')
 
@@ -54,8 +91,8 @@ class ObsidianWriter:
         if self.dry_run:
             logger.info(f"[DRY-RUN] Daily Note に IDEA を追記します: {recording.name}\n{entry}")
         else:
-            with open(daily_path, "a", encoding="utf-8") as f:
-                f.write("\n" + entry + "\n")
+            current = daily_path.read_text(encoding="utf-8")
+            daily_path.write_text(_insert_into_plaud_section(current, entry), encoding="utf-8")
             logger.info(f"[created] IDEA を追記しました ({daily_path.name}): {recording.name}")
 
         return "created"
@@ -120,8 +157,8 @@ class ObsidianWriter:
                 f"[DRY-RUN] Daily Note にリンクを追記します: {recording.name}\n{link_entry}"
             )
         else:
-            with open(daily_path, "a", encoding="utf-8") as f:
-                f.write("\n" + link_entry + "\n")
+            current = daily_path.read_text(encoding="utf-8")
+            daily_path.write_text(_insert_into_plaud_section(current, link_entry), encoding="utf-8")
             logger.info(f"[created] リンクを追記しました ({daily_path.name}): {recording.name}")
 
     # ------------------------------------------------------------------
@@ -145,8 +182,8 @@ class ObsidianWriter:
         if self.dry_run:
             logger.info(f"[DRY-RUN] Daily Note に '録音なし' を追記します: {daily_path.name}")
         else:
-            with open(daily_path, "a", encoding="utf-8") as f:
-                f.write("\n録音なし\n")
+            current = daily_path.read_text(encoding="utf-8")
+            daily_path.write_text(_insert_into_plaud_section(current, "録音なし"), encoding="utf-8")
             logger.info(f"[created] '録音なし' を追記しました: {daily_path.name}")
 
     def _ensure_daily_note(self, d: date) -> Path:
