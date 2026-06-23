@@ -51,6 +51,19 @@
 
 - [x] `ruff check` / `ruff format` でリント・フォーマットが通ることを確認する
 
+### バグ修正: obsidian_writer のセクション末尾追記問題
+
+**背景**: Daily Note テンプレートに `## Plaud` の後続セクション（`## Ideas` 等）がある場合、
+既存の `obsidian_writer.py` が `open(file, "a")` でファイル末尾に追記するため、
+リンクが `## Plaud` セクション内ではなくファイル末尾に追加されてしまう。
+
+- [x] `obsidian_writer.py` に `_insert_into_plaud_section()` ヘルパーを追加する
+- [x] `_process_idea()` を `open("a")` からセクション内挿入に変更する
+- [x] `_append_link_if_missing()` を `open("a")` からセクション内挿入に変更する
+- [x] `write_no_recordings()` を `open("a")` からセクション内挿入に変更する
+- [x] 既存テストが全て通ることを確認する（`uv run pytest`）
+- [x] `## Plaud` が中間セクションにある場合のテストを `test_obsidian_writer.py` に追加する
+
 ---
 
 ## スキップ記録
@@ -73,4 +86,4 @@
 
 ### 残タスク・技術的負債
 
--
+- `obsidian_writer.py` の `open("a")` パターンは Daily Note テンプレートに後続セクションがある場合に壊れる。`_insert_into_plaud_section()` ヘルパーで修正予定

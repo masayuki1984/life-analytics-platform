@@ -333,3 +333,70 @@ def test_dry_run_idea_does_not_write(vault: Path) -> None:
     writer.process_recording(rec, "ドライアイデア", TARGET_DATE)
 
     assert not (vault / "Daily").exists()
+
+
+# ---------------------------------------------------------------------------
+# ## Plaud が中間セクションにある場合（後続セクションあり）
+# ---------------------------------------------------------------------------
+
+TEMPLATE_WITH_TRAILING_SECTIONS = """\
+# {{date}}
+
+## Health
+
+## Plaud
+
+## Ideas
+
+## Tasks
+"""
+
+
+def test_idea_inserted_inside_plaud_section_not_at_eof(vault: Path) -> None:
+    """## Plaud の後続セクションがある場合、IDEA エントリが ## Plaud 内に挿入される。"""
+    _make_template(vault, TEMPLATE_WITH_TRAILING_SECTIONS)
+    rec = _make_recording(name="IDEA_テスト", file_id="a" * 32)
+    writer = ObsidianWriter(vault)
+    writer.process_recording(rec, "要約", TARGET_DATE)
+
+    daily = vault / "Daily" / "2026" / "06" / "2026-06-14.md"
+    content = daily.read_text(encoding="utf-8")
+    lines = content.splitlines()
+    plaud_idx = lines.index("## Plaud")
+    ideas_idx = lines.index("## Ideas")
+    entry_idx = next(i for i, line in enumerate(lines) if "IDEA_テスト" in line)
+
+    assert plaud_idx < entry_idx < ideas_idx
+
+
+def test_link_inserted_inside_plaud_section_not_at_eof(vault: Path) -> None:
+    """## Plaud の後続セクションがある場合、録音リンクが ## Plaud 内に挿入される。"""
+    _make_template(vault, TEMPLATE_WITH_TRAILING_SECTIONS)
+    rec = _make_recording(name="MEETING_Test", file_id="b" * 32)
+    writer = ObsidianWriter(vault)
+    writer.process_recording(rec, "会議", TARGET_DATE)
+
+    daily = vault / "Daily" / "2026" / "06" / "2026-06-14.md"
+    content = daily.read_text(encoding="utf-8")
+    lines = content.splitlines()
+    plaud_idx = lines.index("## Plaud")
+    ideas_idx = lines.index("## Ideas")
+    entry_idx = next(i for i, line in enumerate(lines) if "MEETING_Test" in line)
+
+    assert plaud_idx < entry_idx < ideas_idx
+
+
+def test_no_recordings_inserted_inside_plaud_section_not_at_eof(vault: Path) -> None:
+    """## Plaud の後続セクションがある場合、録音なしが ## Plaud 内に挿入される。"""
+    _make_template(vault, TEMPLATE_WITH_TRAILING_SECTIONS)
+    writer = ObsidianWriter(vault)
+    writer.write_no_recordings(TARGET_DATE)
+
+    daily = vault / "Daily" / "2026" / "06" / "2026-06-14.md"
+    content = daily.read_text(encoding="utf-8")
+    lines = content.splitlines()
+    plaud_idx = lines.index("## Plaud")
+    ideas_idx = lines.index("## Ideas")
+    entry_idx = next(i for i, line in enumerate(lines) if "録音なし" in line)
+
+    assert plaud_idx < entry_idx < ideas_idx
